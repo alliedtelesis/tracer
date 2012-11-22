@@ -65,13 +65,18 @@ class TestTraceExecFunctions(unittest.TestCase):
             )
 
     def test_trace_get_package(self):
+        cases = (
+            'magical-arcane-package',
+            'package with spe&^&&^%&^%&^%@2\xFF\x45 chars',
+            'x900',
+            'ipinfusion',
+        )
         self.trace_exec.trace_get_package.restype = ctypes.c_char_p
-
-        package_name = "magical-arcane-package"
-        os.putenv("PACKAGE_NAME", package_name)
-        package_name2 = self.trace_exec.trace_get_package()
-        self.assertEqual(package_name, package_name2)
-        # FIXME: Test leaks package_name2
+        for package_name in cases:
+            os.putenv("PACKAGE_NAME", package_name)
+            package_name2 = self.trace_exec.trace_get_package()
+            self.assertEqual(package_name, package_name2)
+            # FIXME: Test leaks package_name2
 
     def test_trace_get_directory(self):
         self.trace_exec.trace_get_directory.restype = ctypes.c_char_p
@@ -105,12 +110,10 @@ class TestTraceExecFunctions(unittest.TestCase):
                 self.trace_exec.trace_send(sockfd, argc, argv)
                 f.seek(0)
                 trace2 = f.read()
-
             trace = '%s\t%s\t%s\t%s\n' % ('a-package',
                                           os.getcwd(),
                                           ' '.join(case),
                                           os.getenv('PATH'))
-
             self.assertEqual(trace, trace2)
 
 
