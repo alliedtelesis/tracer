@@ -58,7 +58,6 @@ char *trace_get_directory(void)
     char cwd[PATH_MAX] = {0};
     getcwd(cwd, PATH_MAX);
     return strdup(cwd);
-
 }
 
 char *trace_get_command(int argc, char *argv[])
@@ -89,8 +88,8 @@ void trace_send(int argc, char *argv[])
 {
     int sockfd;
     char *package, *cwd, *cmd, *path;
-    char *message;
-    int message_len = 0;
+    char *msg;
+    int msg_len = 0;
 
     if ((sockfd = trace_transport_inet()) < 0) {
         /* Transport init failed */
@@ -109,14 +108,10 @@ void trace_send(int argc, char *argv[])
     path = getenv("PATH");
     /* TODO Add hostname / other unique ID to message */
     /* TODO How do we determine target platform? */
-    message_len = (
-        strlen(package) + strlen(cwd) + strlen(cmd) + strlen(path) + 4
-    );
-    message = (char *) malloc(sizeof(char) * message_len);
-    snprintf(message, message_len, "%s\t%s\t%s\t%s", package, cwd, cmd, path);
-    message_len = strlen(message);
-
-    write(sockfd, message, strlen(message));
+    msg_len = (strlen(package) + strlen(cwd) + strlen(cmd) + strlen(path) + 5);
+    message = (char *) malloc(sizeof(char) * msg_len);
+    snprintf(msg, msg_len, "%s\t%s\t%s\t%s\n", package, cwd, cmd, path);
+    write(sockfd, msg, msg_len);
     close(sockfd);
     free(message);
     free(package);
