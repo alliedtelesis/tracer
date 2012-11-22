@@ -1,4 +1,5 @@
 import ctypes
+import ctypes.util
 import unittest
 import os
 
@@ -9,9 +10,12 @@ class TestTraceExecFunctions(unittest.TestCase):
     """
     def setUp(self):
         self.trace_exec = ctypes.CDLL('libtrace-exec.so')
-        self.trace_exec.env_path_remove.restype = ctypes.c_char_p
 
-    def test_env_path_remove(self):
+    def free(self, var):
+        libc = ctypes.CDLL(ctypes.util.find_library('c'))
+        libc.free(ctypes.addressof(var))
+
+    def test_trace_path_remove(self):
         cases = (
             {'message': 'None',
              'before': '/usr/bin:/bin:/usr/share/local/bin',
@@ -42,16 +46,37 @@ class TestTraceExecFunctions(unittest.TestCase):
              'after': '/usr/bin:/bin:/usr/share/local/bin',
              'remove': '/nonsense'},
         )
+        self.trace_exec.trace_path_remove.restype = ctypes.c_char_p
         for case in cases:
             path = ctypes.create_string_buffer(case['before'])
             remove_path = ctypes.c_char_p(case['remove'])
 
-            self.trace_exec.env_path_remove(path, remove_path)
+            self.trace_exec.trace_path_remove(path, remove_path)
             self.assertEqual(
                 path.value, case['after'],
                 '%s: Got: "%s", Expected: "%s"' %
                 (case['message'], path.value, case['after'])
             )
+
+    def test_trace_get_package(self):
+        self.trace_exec.trace_get_package.restype = ctypes.c_char_p
+
+        package_name = "magical-arcane-package"
+        os.putenv("PACKAGE_NAME", package_name)
+        package_name2 = self.trace_exec.trace_get_package()
+        self.assertEqual(package_name, package_name2)
+        # FIXME: Test leaks package_name2
+
+    def test_trace_get_directory(self):
+        self.trace_exec.trace_get_directory.restype = ctypes.c_char_p
+
+        cwd = os.getcwd()
+        cwd2 = self.trace_exec.trace_get_directory()
+        self.assertEqual(cwd, cwd2)
+        # FIXME: Test leaks cwd2
+
+    def test_trace_get_command(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
