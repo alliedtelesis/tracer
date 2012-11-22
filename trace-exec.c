@@ -84,37 +84,24 @@ char *trace_get_command(int argc, char *argv[])
 }
 
 
-void trace_send(int argc, char *argv[])
+void trace_send(int sockfd, int argc, char *argv[])
 {
-    int sockfd;
-    char *package, *cwd, *cmd, *path;
+    char *pkg, *cwd, *cmd, *path;
     char *msg;
     int msg_len = 0;
 
-    if ((sockfd = trace_transport_inet()) < 0) {
-        /* Transport init failed */
-        switch (sockfd) {
-            case TRACE_TRANSPORT_ERROR_SOCK:
-            case TRACE_TRANSPORT_ERROR_ADDR:
-            case TRACE_TRANSPORT_ERROR_CONN:
-                break;
-        }
-        return;
-    }
-
-    package = trace_get_package();
+    pkg = trace_get_package();
     cwd = trace_get_directory();
     cmd = trace_get_command(argc, argv);
     path = getenv("PATH");
     /* TODO Add hostname / other unique ID to message */
     /* TODO How do we determine target platform? */
-    msg_len = (strlen(package) + strlen(cwd) + strlen(cmd) + strlen(path) + 5);
-    message = (char *) malloc(sizeof(char) * msg_len);
-    snprintf(msg, msg_len, "%s\t%s\t%s\t%s\n", package, cwd, cmd, path);
-    write(sockfd, msg, msg_len);
-    close(sockfd);
-    free(message);
-    free(package);
+    msg_len = (strlen(pkg) + strlen(cwd) + strlen(cmd) + strlen(path) + 5);
+    msg = (char *) malloc(sizeof(char) * msg_len);
+    snprintf(msg, msg_len, "%s\t%s\t%s\t%s\n", pkg, cwd, cmd, path);
+    write(sockfd, msg, (msg_len - 1)); /* Dont send the null */
+    free(msg);
+    free(pkg);
     free(cwd);
     free(cmd);
 }
@@ -123,7 +110,7 @@ int main(int argc, char *argv[])
 {
     const char *env_intercept_dir;
     char *env_path;
-    int i;
+    int sockfd;
 
     /* Remove $TRACE_INTERCEPT_DIR from the system path */
     if ((env_intercept_dir = getenv(TRACE_INTERCEPT_DIR)) == NULL) {
@@ -138,11 +125,21 @@ int main(int argc, char *argv[])
      * ie. "/trace-int/gcc" -> "gcc" */
     argv[0] = basename(argv[0]);
 
-    fprintf(stdout, "trace-exec: ");
-    for (i = 0; i < argc; i++) {
-        fprintf(stdout, " %s", argv[i]);
+    /* Setup the trace transport and send */
+    /* TODO Selection of other transports */
+    if ((sockfd = trace_transport_inet()) < 0) {
+        /* Transport setup failed */
+        switch (sockfd) {
+            case TRACE_TRANSPORT_ERROR_SOCK:
+            case TRACE_TRANSPORT_ERROR_ADDR:
+            case TRACE_TRANSPORT_ERROR_CONN:
+                break;
+        }
+    } else {
+        trace_send(sockfd, argc, argv);
+        if (sockfd != STDOUT_FILENO)
+            close(sockfd);
     }
-    fprintf(stdout, "\n");
 
     return execvp(argv[0], argv);
 }
