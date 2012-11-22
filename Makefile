@@ -1,10 +1,13 @@
 
-CFLAGS = "-Wall"
+CFLAGS = -Wall
 
-trace-exec: trace-exec.c
-	$(CC) $(CFLAGS) trace-exec.c -o trace-exec
+SRCS = trace-exec.c transport.c 
+OBJS = $(SRCS:.c=.o)
 
-libtrace-exec.so: trace-exec.c
+trace-exec: $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS) -o trace-exec
+
+libtrace-exec.so: $(SRCS)
 	$(CC) -fpic -c trace-exec.c -o testlib.o
 	$(CC) -shared testlib.o -o libtrace-exec.so
 	rm testlib.o
@@ -15,6 +18,4 @@ test: libtrace-exec.so
 
 .PHONY: clean
 clean:
-	rm libtrace-exec.so \
-           trace-exec \
-           trace-exec.o
+	rm *.so *.o trace-exec

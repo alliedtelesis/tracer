@@ -4,16 +4,10 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#include "transport.h"
 
 /* env var for intercept symlink directory */
 #define TRACE_INTERCEPT_DIR "TRACE_INTERCEPT_DIR"
-#define TRACE_TRANSPORT_TCP
-#define TRACE_ADDR "TRACE_ADDR"
-#define TRACE_PORT "TRACE_PORT"
 
 #define PATH_MAX 10240
 
@@ -51,7 +45,7 @@ char *trace_get_package(void)
 {
     char *package_name = getenv("PACKAGE_NAME");
     if (package_name == NULL) {
-        package_name = malloc(sizeof(char) * 5);
+        package_name = (char *) malloc(sizeof(char) * 5);
         strcpy(package_name, "none");
     } else {
         package_name = strdup(package_name);
@@ -71,14 +65,15 @@ char *trace_get_command(int argc, char *argv[])
 {
     char *command_string;
     int len = 0;
+    int i;
 
-    for (int i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++) {
         len += strlen(argv[i]);
     }
     /* Length of all the args, plus one char between, plus a null */
-    command_string = malloc((sizeof(char) * len) + argc);
+    command_string = (char *) malloc((sizeof(char) * len) + argc);
 
-    for (int i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++) {
         strcat(command_string, argv[i]);
         if (i < (argc -1))
             strcat(command_string, " ");
@@ -86,76 +81,51 @@ char *trace_get_command(int argc, char *argv[])
     return command_string;
 }
 
-#ifdef TRACE_TRANSPORT_TCP
-void init_sockaddr(struct sockaddr_in *name,
-                   const char *hostname,
-                   unsigned short int port)
-{
-    struct hostent *hostinfo;
-
-    name->sin_family = AF_INET;
-    name->sin_port = htons(port);
-    hostinfo = gethostbyname(hostname);
-    if (hostinfo == NULL) {
-        fprintf(stderr, "Error: no such host '%s'", hostname);
-        exit(EXIT_FAILURE); /* We really should fall through to execvp */
-    }
-    name->sin_addr = *(struct in_addr *) hostinfo->h_addr;
-}
-#endif /* TRACE_TRANSPORT_TCP */
-
 
 void trace_send(int argc, char *argv[])
 {
-
-    char *package, *cwd, *cmd, *path;
-
-#ifdef TRACE_TRANSPORT_TCP
     int sockfd;
-    struct sockaddr_in addr;
-    int port;
+    char *package, *cwd, *cmd, *path;
+    char *message;
+    int message_len = 0;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        fprintf(stderr, "Error: cannot open socket");
-        exit(EXIT_FAILURE); /* We really should fall through to execvp */
+    if ((sockfd = trace_transport_inet()) < 0) {
+        /* Transport init failed */
+        switch (sockfd) {
+            case TRACE_TRANSPORT_ERROR_SOCK:
+            case TRACE_TRANSPORT_ERROR_ADDR:
+            case TRACE_TRANSPORT_ERROR_CONN:
+                break;
+        }
+        return;
     }
-
-    port = atoi(getenv(TRACE_PORT));
-    if (!(port > 0 && port < 65536)) {
-        fprintf(stderr, "Error: invalid port");
-    }
-    init_sockaddr(&addr, getenv(TRACE_ADDR), port);
-
-    if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "Error: cannot connect");
-        exit(EXIT_FAILURE); /* We really should fall through to execvp */
-    }
-#endif /* TRACE_TRANSPORT_TCP */
 
     package = trace_get_package();
-    write(sockfd, package, strlen(package));
-    write(sockfd, "\t", 1);
-    free(package);
-
     cwd = trace_get_directory();
-    write(sockfd, cwd, strlen(cwd));
-    write(sockfd, "\t", 1);
-    free(cwd);
-
     cmd = trace_get_command(argc, argv);
-    write(sockfd, cmd, strlen(cmd));
-    write(sockfd, "\t", 1);
-    free(cwd);
-
     path = getenv("PATH");
-    write(sockfd, path, strlen(path));
+    /* TODO Add hostname / other unique ID to message */
+    /* TODO How do we determine target platform? */
+    message_len = (
+        strlen(package) + strlen(cwd) + strlen(cmd) + strlen(path) + 4
+    );
+    message = (char *) malloc(sizeof(char) * message_len);
+    snprintf(message, message_len, "%s\t%s\t%s\t%s", package, cwd, cmd, path);
+    message_len = strlen(message);
+
+    write(sockfd, message, strlen(message));
+    close(sockfd);
+    free(message);
+    free(package);
+    free(cwd);
+    free(cmd);
 }
 
 int main(int argc, char *argv[])
 {
     const char *env_intercept_dir;
     char *env_path;
+    int i;
 
     /* Remove $TRACE_INTERCEPT_DIR from the system path */
     if ((env_intercept_dir = getenv(TRACE_INTERCEPT_DIR)) == NULL) {
@@ -171,7 +141,7 @@ int main(int argc, char *argv[])
     argv[0] = basename(argv[0]);
 
     fprintf(stdout, "trace-exec: ");
-    for (int i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++) {
         fprintf(stdout, " %s", argv[i]);
     }
     fprintf(stdout, "\n");
