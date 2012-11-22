@@ -8,14 +8,15 @@ trace-exec: $(SRCS)
 	$(CC) $(CFLAGS) $(SRCS) -o trace-exec
 
 libtrace-exec.so: $(SRCS)
-	$(CC) -fpic -c trace-exec.c -o testlib.o
-	$(CC) -shared testlib.o -o libtrace-exec.so
-	rm testlib.o
+	$(CC) -fpic -c trace-exec.c -o libtrace-exec.o
+	$(CC) -fpic -c transport.c -o libtrace-transport.o
+	$(CC) -shared libtrace-exec.o libtrace-transport.o -o libtrace-exec.so
+	rm libtrace*.o
 
 .PHONY: test
 test: libtrace-exec.so
-	python test_trace_exec.py
+	LD_LIBRARY_PATH=`pwd` python test_trace_exec.py
 
 .PHONY: clean
 clean:
-	rm *.so *.o trace-exec
+	rm -f *.so *.o trace-exec

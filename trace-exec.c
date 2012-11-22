@@ -64,6 +64,7 @@ char *trace_get_directory(void)
 char *trace_get_command(int argc, char *argv[])
 {
     char *command_string;
+    int size;
     int len = 0;
     int i;
 
@@ -71,7 +72,9 @@ char *trace_get_command(int argc, char *argv[])
         len += strlen(argv[i]);
     }
     /* Length of all the args, plus one char between, plus a null */
-    command_string = (char *) malloc((sizeof(char) * len) + argc);
+    size = (sizeof(char) * len + argc);
+    command_string = (char *) malloc(size);
+    memset(command_string, 0, size);
 
     for (i = 0; i < argc; i++) {
         strcat(command_string, argv[i]);
