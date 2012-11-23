@@ -3,6 +3,7 @@ import ctypes
 import ctypes.util
 import unittest
 import os
+import random
 import socket
 import tempfile
 import threading
@@ -127,9 +128,7 @@ class TestTraceExec(unittest.TestCase):
     def test_trace_transport_unix(self):
         self.trace_exec.trace_transport_unix.restype = ctypes.c_int
 
-        import random
         path = "/tmp/un_%s.sock" % random.randint(0, 1024)
-
 
         def listener(pipe):
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -168,6 +167,54 @@ class TestTraceExec(unittest.TestCase):
 
         self.assertEqual(message, message2)
 
+    #TODO Tidy up test_trace_transport_inet and test_trace_transport_unix
+    #     as they are messy, and share alot of common code, maybe they
+    #     should be broken out into their own TestCase class.
+
+    def test_trace_transport_inet(self):
+        self.trace_exec.trace_transport_inet.restype = ctypes.c_int
+
+        hostname = "localhost"
+        port = random.randint(40000, 48000)
+
+        def listener(pipe):
+            addr = (socket.gethostbyname(hostname), port)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.bind(addr)
+            sock.listen(1)
+            conn, addr = sock.accept()
+            while 1:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                os.write(pipe, data)
+            os.close(pipe)
+
+        r_pipe, w_pipe = os.pipe()
+        reflector = threading.Thread(target=listener, args=(w_pipe,))
+        reflector.start()
+
+        # Wait for the listener to bind 
+        time.sleep(0.01)
+
+        os.putenv("TRACE_HOST", hostname)
+        os.putenv("TRACE_PORT", str(port))
+        sock2 = self.trace_exec.trace_transport_inet()
+
+        message = "Hello World!"
+        os.write(sock2, message)
+        os.close(sock2)
+
+        buf = cStringIO.StringIO()
+        while 1:
+            data = os.read(r_pipe, 1024)
+            if not data:
+                break
+            buf.write(data)
+        buf.seek(0)
+        message2 = buf.read()
+
+        self.assertEqual(message, message2)
 
 if __name__ == '__main__':
     unittest.main()
