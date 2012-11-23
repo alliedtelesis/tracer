@@ -1,8 +1,12 @@
+import cStringIO
 import ctypes
 import ctypes.util
 import unittest
 import os
+import socket
 import tempfile
+import threading
+import time
 
 ARG_CASES = (
     ("executable",),
@@ -14,9 +18,14 @@ ARG_CASES = (
     ("powerpc-603e-linux-uclibc-gcc", "-DHAVE_CONFIG_H", "-I.", "-I../../openatlibs/cntrd", "-I..", "-I.", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/openatlibs/staging/usr/include/glib-2.0", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/openatlibs/staging/usr/lib/glib-2.0/include", "-Wall", "-Werror", "--sysroot=/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/openatlibs/staging", "-L/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/openatlibs/staging/usr/lib", "-Os", "-g2", "-mcpu=603e", "-DATL_CHANGE", "-MT", "cntrd_app_gen.lo", "-MD", "-MP", "-MF", ".deps/cntrd_app_gen.Tpo", "-c", "../../openatlibs/cntrd/cntrd_app_gen.c", "-o", "cntrd_app_gen.o"),
 )
 
-class TestTraceExecFunctions(unittest.TestCase):
+class TestTraceExec(unittest.TestCase):
     """
     Requires directory containing 'libtrace-exec.so' to be in LD_LIBRARY_PATH
+
+    The Makefile can do this for you and run these tests:
+
+        $ make test
+
     """
     def setUp(self):
         self.trace_exec = ctypes.CDLL('libtrace-exec.so')
@@ -68,7 +77,6 @@ class TestTraceExecFunctions(unittest.TestCase):
         cases = (
             'magical-arcane-package',
             'package with spe&^&&^%&^%&^%@2\xFF\x45 chars',
-            'x900',
             'ipinfusion',
         )
         self.trace_exec.trace_get_package.restype = ctypes.c_char_p
@@ -115,6 +123,50 @@ class TestTraceExecFunctions(unittest.TestCase):
                                           ' '.join(case),
                                           os.getenv('PATH'))
             self.assertEqual(trace, trace2)
+
+    def test_trace_transport_unix(self):
+        self.trace_exec.trace_transport_unix.restype = ctypes.c_int
+
+        import random
+        path = "/tmp/un_%s.sock" % random.randint(0, 1024)
+
+
+        def listener(pipe):
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.bind(path)
+            sock.listen(1)
+            conn, addr = sock.accept()
+            while 1:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                os.write(pipe, data)
+            os.close(pipe)
+
+        r_pipe, w_pipe = os.pipe()
+        reflector = threading.Thread(target=listener, args=(w_pipe,))
+        reflector.start()
+
+        # Wait for the listener to bind 
+        time.sleep(0.01)
+
+        os.putenv("TRACE_UNIX", path)
+        sock2 = self.trace_exec.trace_transport_unix()
+
+        message = "Hello World!"
+        os.write(sock2, message)
+        os.close(sock2)
+
+        buf = cStringIO.StringIO()
+        while 1:
+            data = os.read(r_pipe, 1024)
+            if not data:
+                break
+            buf.write(data)
+        buf.seek(0)
+        message2 = buf.read()
+
+        self.assertEqual(message, message2)
 
 
 if __name__ == '__main__':
