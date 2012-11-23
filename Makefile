@@ -15,7 +15,7 @@ libtrace-exec.so: $(SRCS)
 
 .PHONY: test
 test: libtrace-exec.so
-	LD_LIBRARY_PATH=`pwd` python test_trace_exec.py
+	./run_tests.py
 
 .PHONY: clean
 clean:
