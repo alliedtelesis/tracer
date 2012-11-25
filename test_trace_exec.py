@@ -12,7 +12,7 @@ import time
 ARG_CASES = (
     ("executable",),
     ("executable", "arg1", "arg2"),
-    ("executable", "longerargumentwithspe^&cialchars"),
+    ("executable", "longerarg$umentwithspe & cialchars"),
     ("gcc", "-Wall", "-c", "file.c", "-o", "file.o"),
     # Line breaks? nuh
     ("powerpc-603e-linux-uclibc-gcc", "-c", "-isystem/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging/include",  "-I../..", "-I../../pal/api", "-I../../pal/linux", "-I../../lib", "-I../../cal", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/work/ipinfusion/platform/linux", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/work/ipinfusion-build/platform/linux", "--sysroot=/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/new/install/include/", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging/usr/include/hslhw", "-Wformat=2", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging/usr/include/glib-2.0", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging/usr/lib/glib-2.0/include", "-I/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/staging/usr/include/openhpi", "-Os", "-g2", "-mcpu=603e", "-DATL_CHANGE", "-Wall", "-funsigned-char", "-fno-signed-char", "-fno-strict-aliasing", "-Werror", "-Wno-pointer-sign", "-Wlong-long", "-Wnested-externs", "-I../../lib/fm", "-I../../lib/memmgr", "-I../../hal/PBR", "-I../../imi/util", "-I../../hal", "-I../../nsm", "-I../../nsm/L2", "-I../../nsm/L2/garp", "-I../../nsm/L2/gvrp", "-I../../nsm/L2/igmp_snoop", "-I../../nsm", "-I../../nsm/L2", "-I../../nsm/rib", "-I../../imi", "-o", "/home/andrewm/source/work/VCN_1628/buildsys/output/x600-uclibc/ipinfusion/work/ipinfusion-build/platform/linux/obj/pal/imi/pal_atl_atmf.o", "imi/pal_atl_atmf.c"),
@@ -30,6 +30,29 @@ class TestTraceExec(unittest.TestCase):
     """
     def setUp(self):
         self.trace_exec = ctypes.CDLL('libtrace-exec.so')
+
+    def join_args(self, args):
+        self.trace_exec.shell_quote.restype = ctypes.c_char_p
+        shell_quote = self.trace_exec.shell_quote
+        return ' '.join((shell_quote(arg) for arg in args))
+
+
+    def test_shell_quote(self):
+        cases = (
+            ('-DSOMEDEF=A spaced string.', '-DSOMEDEF=A\\ spaced\\ string.'),
+            ('|', '\\|'),
+            ('CHEE$E', 'CHEE\\$E')
+        
+        )
+        self.trace_exec.shell_quote.restype = ctypes.c_char_p
+        for case in cases:
+            arg = ctypes.c_char_p(case[0])
+            
+            quoted = case[1]
+            quoted2 = self.trace_exec.shell_quote(arg)
+
+            self.assertEqual(quoted, quoted2)
+
 
     def test_trace_path_remove(self):
         cases = (
@@ -97,13 +120,12 @@ class TestTraceExec(unittest.TestCase):
 
     def test_trace_get_command(self):
         self.trace_exec.trace_get_command.restype = ctypes.c_char_p
-
         for case in ARG_CASES:
             argc = len(case)
             ArgvArr = (ctypes.c_char_p * argc)
             argv = ArgvArr(*(ctypes.c_char_p(arg) for arg in case))
 
-            cmd = ' '.join(case)
+            cmd = self.join_args(case)
             cmd2 = self.trace_exec.trace_get_command(argc, argv)
             self.assertEqual(cmd, cmd2)
             # FIXME: Test leaks every cmd2
@@ -121,7 +143,7 @@ class TestTraceExec(unittest.TestCase):
                 trace2 = f.read()
             trace = '%s\t%s\t%s\t%s\n' % ('a-package',
                                           os.getcwd(),
-                                          ' '.join(case),
+                                          self.join_args(case),
                                           os.getenv('PATH'))
             self.assertEqual(trace, trace2)
 

@@ -12,7 +12,42 @@
 #define PATH_MAX 10240
 
 /**
- * Remove the a path from the a ':' delimited path list.
+ * Quote all special characters with a backslash
+ *
+ * Returns a malloc'ed string
+ */
+char *shell_quote (char *string)
+{
+    int c;
+    char *qstring, *q, *s;
+
+    qstring = malloc(2 * strlen(string) + 1);
+
+    for (q = qstring, s = string; s && (c = *s); s++) {
+        switch (c)
+        {
+        case ' ':  case '\t': case '\n': case'$':   case '`': case ',': 
+        case '(':  case ')':  case '<':  case '>':  case '{': case '}':
+        case '[':  case ']':  case '!':  case '*':  case '?': case '^':
+        case '\'': case '"':  case '\\': case '|':  case '&': case ';':
+            *q++ = '\\';
+            *q++ = c;
+            break;
+        case '#':
+            if (s == string)
+                *q++ = '\\';
+        default:
+            *q++ = c;
+            break;
+        }
+    }
+
+    *q = '\0';
+    return qstring;
+}
+
+/**
+ * Remove the a path from the a ':' delimited path list, in place.
  */
 char *trace_path_remove(char *env_path, const char *path)
 {
@@ -40,12 +75,16 @@ char *trace_path_remove(char *env_path, const char *path)
     return env_path;
 }
 
-
+/**
+ * Get the $PACKAGE_NAME from environment, or "none"
+ *
+ * Returns a malloc'ed string
+ */
 char *trace_get_package(void)
 {
     char *package_name = getenv("PACKAGE_NAME");
     if (package_name == NULL) {
-        package_name = (char *) malloc(sizeof(char) * 5);
+        package_name = malloc(5);
         strcpy(package_name, "none");
     } else {
         package_name = strdup(package_name);
@@ -60,23 +99,28 @@ char *trace_get_directory(void)
     return strdup(cwd);
 }
 
+/**
+ * Rebuild and requote the command line from argv
+ *
+ * Returns a malloc'ed string
+ */
 char *trace_get_command(int argc, char *argv[])
 {
     char *command_string;
-    int size;
-    int len = 0;
-    int i;
+    char *quoted_arg;
+    int i, len;
 
-    for (i = 0; i < argc; i++) {
+    for (i = 0, len = 0; i < argc; i++) {
         len += strlen(argv[i]);
     }
-    /* Length of all the args, plus one char between, plus a null */
-    size = (sizeof(char) * len + argc);
-    command_string = (char *) malloc(size);
-    memset(command_string, 0, size);
+    /* 2x to allow room for worst case quoting */
+    command_string = malloc(2 *(len + argc));
+    *command_string = '\0';
 
     for (i = 0; i < argc; i++) {
-        strcat(command_string, argv[i]);
+        quoted_arg = shell_quote(argv[i]);
+        strcat(command_string, quoted_arg);
+        free(quoted_arg);
         if (i < (argc -1))
             strcat(command_string, " ");
     }
@@ -97,7 +141,7 @@ void trace_send(int sockfd, int argc, char *argv[])
     /* TODO Add hostname / other unique ID to message */
     /* TODO How do we determine target platform? */
     msg_len = (strlen(pkg) + strlen(cwd) + strlen(cmd) + strlen(path) + 5);
-    msg = (char *) malloc(sizeof(char) * msg_len);
+    msg = malloc(msg_len);
     snprintf(msg, msg_len, "%s\t%s\t%s\t%s\n", pkg, cwd, cmd, path);
     write(sockfd, msg, (msg_len - 1)); /* Dont send the null */
     free(msg);

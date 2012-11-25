@@ -15,7 +15,7 @@ libtrace-exec.so: $(SRCS)
 
 .PHONY: test
 test: libtrace-exec.so
-	./run_tests.py
+	./run_tests.sh
 
 .PHONY: clean
 clean:
