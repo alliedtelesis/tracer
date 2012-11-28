@@ -141,10 +141,9 @@ class TestTraceExec(unittest.TestCase):
                 self.trace_exec.trace_send(sockfd, argc, argv)
                 f.seek(0)
                 trace2 = f.read()
-            trace = '%s\t%s\t%s\t%s\n' % ('a-package',
-                                          os.getcwd(),
-                                          self.join_args(case),
-                                          os.getenv('PATH'))
+            trace = '%s\t%s\t%s' % ('a-package',
+                                    os.getcwd(),
+                                    self.join_args(case),)
             self.assertEqual(trace, trace2)
 
     def test_trace_transport_unix(self):

@@ -130,19 +130,18 @@ char *trace_get_command(int argc, char *argv[])
 
 void trace_send(int sockfd, int argc, char *argv[])
 {
-    char *pkg, *cwd, *cmd, *path;
+    char *pkg, *cwd, *cmd;
     char *msg;
     int msg_len = 0;
 
     pkg = trace_get_package();
     cwd = trace_get_directory();
     cmd = trace_get_command(argc, argv);
-    path = getenv("PATH");
     /* TODO Add hostname / other unique ID to message */
     /* TODO How do we determine target platform? */
-    msg_len = (strlen(pkg) + strlen(cwd) + strlen(cmd) + strlen(path) + 5);
+    msg_len = (strlen(pkg) + strlen(cwd) + strlen(cmd) + 3);
     msg = malloc(msg_len);
-    snprintf(msg, msg_len, "%s\t%s\t%s\t%s\n", pkg, cwd, cmd, path);
+    snprintf(msg, msg_len, "%s\t%s\t%s", pkg, cwd, cmd);
     write(sockfd, msg, (msg_len - 1)); /* Dont send the null */
     free(msg);
     free(pkg);
