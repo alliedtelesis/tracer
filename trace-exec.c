@@ -8,6 +8,7 @@
 
 /* env var for intercept symlink directory */
 #define TRACE_INTERCEPT_DIR "TRACE_INTERCEPT_DIR"
+#define TRACE_PACKAGE_NAME "BS_PACKAGE_NAME"
 
 #define PATH_MAX 10240
 
@@ -82,7 +83,7 @@ char *trace_path_remove(char *env_path, const char *path)
  */
 char *trace_get_package(void)
 {
-    char *package_name = getenv("PACKAGE_NAME");
+    char *package_name = getenv(TRACE_PACKAGE_NAME);
     if (package_name == NULL) {
         package_name = malloc(5);
         strcpy(package_name, "none");
@@ -137,8 +138,6 @@ void trace_send(int sockfd, int argc, char *argv[])
     pkg = trace_get_package();
     cwd = trace_get_directory();
     cmd = trace_get_command(argc, argv);
-    /* TODO Add hostname / other unique ID to message */
-    /* TODO How do we determine target platform? */
     msg_len = (strlen(pkg) + strlen(cwd) + strlen(cmd) + 3);
     msg = malloc(msg_len);
     snprintf(msg, msg_len, "%s\t%s\t%s", pkg, cwd, cmd);
@@ -169,7 +168,6 @@ int main(int argc, char *argv[])
     argv[0] = basename(argv[0]);
 
     /* Setup the trace transport and send */
-    /* TODO Selection of other transports */
     if ((sockfd = trace_transport_inet()) < 0) {
         /* Transport setup failed */
         switch (sockfd) {
@@ -180,8 +178,7 @@ int main(int argc, char *argv[])
         }
     } else {
         trace_send(sockfd, argc, argv);
-        if (sockfd != STDOUT_FILENO)
-            close(sockfd);
+        trace_transport_close(sockfd);
     }
 
     return execvp(argv[0], argv);

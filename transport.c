@@ -14,6 +14,12 @@
 #define TRACE_TRANSPORT_PORT "TRACE_PORT"
 #define TRACE_TRANSPORT_UNIX "TRACE_UNIX"
 
+int trace_transport_close(int sockfd)
+{
+    shutdown(sockfd, SHUT_RDWR);
+    return close(sockfd);
+}
+
 /**
  * Trace transport with TCP/unix
  *
@@ -72,6 +78,8 @@ int trace_transport_inet(void)
     char *port;
 
     int sockfd;
+    int optval;
+    struct linger lingerval;
 
     /* Fill out address hints */
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -100,6 +108,11 @@ int trace_transport_inet(void)
             /* Socket says no */
             continue;
         }
+        optval = 1;
+        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        lingerval.l_onoff = 0;
+        lingerval.l_linger = 0;
+        setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &lingerval, sizeof(lingerval));
         if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) != -1) {
             /* Connected */
             break;

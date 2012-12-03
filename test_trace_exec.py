@@ -105,7 +105,7 @@ class TestTraceExec(unittest.TestCase):
         )
         self.trace_exec.trace_get_package.restype = ctypes.c_char_p
         for package_name in cases:
-            os.putenv("PACKAGE_NAME", package_name)
+            os.putenv("BS_PACKAGE_NAME", package_name)
             package_name2 = self.trace_exec.trace_get_package()
             self.assertEqual(package_name, package_name2)
             # FIXME: Test leaks package_name2
@@ -135,7 +135,7 @@ class TestTraceExec(unittest.TestCase):
             argc = len(case)
             ArgvArr = (ctypes.c_char_p * argc)
             argv = ArgvArr(*(ctypes.c_char_p(arg) for arg in case))
-            os.putenv("PACKAGE_NAME", "a-package")
+            os.putenv("BS_PACKAGE_NAME", "a-package")
             with tempfile.TemporaryFile() as f:
                 sockfd = f.fileno()
                 self.trace_exec.trace_send(sockfd, argc, argv)
@@ -175,7 +175,7 @@ class TestTraceExec(unittest.TestCase):
 
         message = "Hello World!"
         os.write(sock2, message)
-        os.close(sock2)
+        self.trace_exec.trace_transport_close(sock2)
 
         buf = cStringIO.StringIO()
         while 1:
@@ -224,7 +224,7 @@ class TestTraceExec(unittest.TestCase):
 
         message = "Hello World!"
         os.write(sock2, message)
-        os.close(sock2)
+        self.trace_exec.trace_transport_close(sock2)
 
         buf = cStringIO.StringIO()
         while 1:
