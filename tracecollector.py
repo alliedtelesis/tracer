@@ -25,6 +25,7 @@ class TraceHandler(SocketServer.StreamRequestHandler):
 
     def handle(self):
         data = self.rfile.read()
+        self.rfile.close()
         try:
             package, cwd, cmd = data.split('\t')
             c_file = self.get_file(cmd)
@@ -51,12 +52,11 @@ class CompileCommandStorage(object):
     def _create_package_file(self, package):
         if not self.handles.has_key(package):
             f = open(os.path.join(self.path, 'compile_commands.%s.json' % package), 'w')
-            f.write('[')
+            f.write('[]')
             self.handles[package] = f
 
     def _close_package_files(self):
         for f in self.handles.itervalues():
-            f.write(']')
             f.close()
 
     def close(self):
@@ -66,14 +66,60 @@ class CompileCommandStorage(object):
         if not self.handles.has_key(package):
             self._create_package_file(package)
         f = self.handles[package]
+        # overwrite trailing close bracket
+        f.seek(-1, 1)
         if f.tell() != 1:
             f.write(',')
         f.write(json.dumps(command))
+        f.write(']')
 
+
+class TraceCollector(object):
+    def __init__(self, host, port, output_dir):
+        self.host = host
+        self.port = port
+        self.o_dir = output_dir
+
+        self.queue = Queue.Queue()
+        self.store = CompileCommandStorage(self.o_dir)
+
+    def _start_in_thread(self):
+        self.server = SocketServer.TCPServer((self.host, self.port), TraceHandler)
+        self.server.allow_reuse_address = True
+        self.server.queue = self.queue
+        self.in_thread = threading.Thread(target=self.server.serve_forever)
+        self.in_thread.daemon = True
+        self.in_thread.start()
+        print 'TraceCollector listening on %s:%i' % (self.host, self.port)
+
+    def _start_out_thread(self):
+        self.out_thread = threading.Thread(target=self._out_thread)
+        self.out_thread.start()
+
+    def _out_thread(self):
+        try:
+            while self.run == True:
+                try:
+                    self.store.store(*self.queue.get(block=False))
+                    self.queue.task_done()
+                except Queue.Empty:
+                    time.sleep(0.1)
+        finally:
+            self.store.close()
+            self.server.shutdown()
+
+    def start(self):
+        self.run = True
+        self._start_out_thread()
+        self._start_in_thread()
+
+    def stop(self):
+        self.run = False
+        self.out_thread.join()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Trace Collector')
- 
+
     parser.add_argument(
         'port', type=int, help='Port to bind to'
     )
@@ -85,30 +131,6 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    HOST = args.addr
-    PORT = args.port
-    O_PATH = args.o[0]
-
-    q = Queue.Queue()
-    s = SocketServer.TCPServer((HOST, PORT), TraceHandler)
-    s.queue = q
-    server_thread = threading.Thread(target=s.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
-    print 'Listening on %s:%i' % (HOST, PORT)
-
-    store = CompileCommandStorage(O_PATH)
-
-    try:
-        while 1:
-            try:
-                store.store(*q.get(block=False))
-                q.task_done()
-            except Queue.Empty:
-                time.sleep(0.5)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        store.close()
-        s.shutdown()
+    tc = TraceCollector(args.addr, args.port, args.o[0])
+    tc.start()
 
