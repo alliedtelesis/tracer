@@ -69,7 +69,7 @@ class CompileCommandStorage(object):
         # overwrite trailing close bracket
         f.seek(-1, 1)
         if f.tell() != 1:
-            f.write(',')
+            f.write(',\n ')
         f.write(json.dumps(command))
         f.write(']')
 
