@@ -86,6 +86,7 @@ class TraceCollector(object):
     def _start_in_thread(self):
         self.server = SocketServer.TCPServer((self.host, self.port), TraceHandler)
         self.server.allow_reuse_address = True
+        self.server.request_queue_size = 64
         self.server.queue = self.queue
         self.in_thread = threading.Thread(target=self.server.serve_forever)
         self.in_thread.daemon = True
