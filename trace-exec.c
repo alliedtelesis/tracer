@@ -181,5 +181,10 @@ int main(int argc, char *argv[])
         trace_transport_close(sockfd);
     }
 
-    return execvp(argv[0], argv);
+    if(getenv("TRACE_CACHE") == NULL)
+    {
+        return execvp(argv[0], argv);
+    } else {
+        return execvp(getenv("TRACE_CACHE"), argv);
+    }
 }
