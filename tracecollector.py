@@ -36,7 +36,7 @@ class TraceHandler(SocketServer.StreamRequestHandler):
                                'file' : c_file,})
                 )
         except:
-            print stderr, 'Received malformed trace "%s"' % data
+            sys.strerr.write('Received malformed trace "%s"' % data)
 
 class CompileCommandStorage(object):
     def __init__(self, path):
@@ -75,7 +75,7 @@ class CompileCommandStorage(object):
 
 
 class TraceCollector(object):
-    def __init__(self, host, port, output_dir):
+    def __init__(self, host, output_dir, port=False):
         self.host = host
         self.port = port
         self.o_dir = output_dir
@@ -84,14 +84,20 @@ class TraceCollector(object):
         self.store = CompileCommandStorage(self.o_dir)
 
     def _start_in_thread(self):
-        self.server = SocketServer.TCPServer((self.host, self.port), TraceHandler)
-        self.server.allow_reuse_address = True
+        if not self.port:
+            self.server = SocketServer.UnixStreamServer(self.host, TraceHandler)
+            sock = self.host
+        else:
+            self.server = SocketServer.TCPServer((self.host, self.port), TraceHandler)
+            self.server.allow_reuse_address = True
+            sock = '%s:%i' % (self.host, self.port)
+
         self.server.request_queue_size = 1024
         self.server.queue = self.queue
         self.in_thread = threading.Thread(target=self.server.serve_forever)
         self.in_thread.daemon = True
         self.in_thread.start()
-        print 'TraceCollector listening on %s:%i' % (self.host, self.port)
+        print 'TraceCollector listening on %s' % sock
 
     def _start_out_thread(self):
         self.out_thread = threading.Thread(target=self._out_thread)
@@ -117,15 +123,18 @@ class TraceCollector(object):
     def stop(self):
         self.run = False
         self.out_thread.join()
+        if not self.port:
+            # Remove the Unix socket
+            os.remove(self.host)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Trace Collector')
 
     parser.add_argument(
-        'port', type=int, help='Port to bind to'
+        'addr', help='Address to bind to'
     )
     parser.add_argument(
-        '--addr', default='localhost', help='Address to bind to'
+        '--tcp', default=False, type=int, metavar='PORT', help='TCP Port to bind to'
     )
     parser.add_argument(
         '-o', nargs=1, required=True, metavar='PATH', help='Output directory'

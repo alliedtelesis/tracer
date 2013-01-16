@@ -167,8 +167,17 @@ int main(int argc, char *argv[])
      * ie. "/trace-int/gcc" -> "gcc" */
     argv[0] = basename(argv[0]);
 
-    /* Setup the trace transport and send */
-    if ((sockfd = trace_transport_inet()) < 0) {
+
+    /* Setup the trace transport */
+    if (getenv("TRACE_UNIX") != NULL) {
+        sockfd = trace_transport_unix();
+    } else if (getenv("TRACE_HOST") != NULL) {
+        sockfd = trace_transport_inet();
+    } else {
+        fprintf(stderr, "Error: No trace transport specified\n");
+        exit(EXIT_FAILURE);
+    }
+    if (sockfd < 0) {
         /* Transport setup failed */
         switch (sockfd) {
             case TRACE_TRANSPORT_ERROR_SOCK:
@@ -177,6 +186,7 @@ int main(int argc, char *argv[])
                 break;
         }
     } else {
+        /* Send and shutdown transport */
         trace_send(sockfd, argc, argv);
         trace_transport_close(sockfd);
     }

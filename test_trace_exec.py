@@ -196,7 +196,7 @@ class TestTraceExec(unittest.TestCase):
         self.trace_exec.trace_transport_inet.restype = ctypes.c_int
 
         hostname = "localhost"
-        port = random.randint(40000, 48000)
+        port = random.randint(20000, 48000)
 
         def listener(pipe):
             addr = (socket.gethostbyname(hostname), port)
