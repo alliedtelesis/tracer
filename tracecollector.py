@@ -141,6 +141,6 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    tc = TraceCollector(args.addr, args.port, args.o[0])
+    tc = TraceCollector(args.addr, args.o[0], port=args.tcp)
     tc.start()
 
