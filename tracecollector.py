@@ -15,13 +15,16 @@ class TraceHandler(SocketServer.StreamRequestHandler):
     def get_file(self, command):
         argv = shlex.split(command)
 
-        cfiles = fnmatch.filter(argv, '*.c')
+        cfiles = reduce(
+            lambda x, y: x+y,
+            [fnmatch.filter(argv, '*.c')
+             fnmatch.filter(argv, '*.cpp')
+             fnmatch.filter(argv, '*.cxx')
+             fnmatch.filter(argv, '*.c++')
+             fnmatch.filter(argv, '*.s')]
+        )
         if cfiles:
             return cfiles[0]
-
-        sfiles = fnmatch.filter(argv, '*.s')
-        if sfiles:
-            return sfiles[0]
 
     def handle(self):
         data = self.rfile.read()
