@@ -36,10 +36,11 @@ class TraceHandler(SocketServer.StreamRequestHandler):
                 self.server.queue.put(
                     (package, {'command': cmd,
                                'directory': cwd,
-                               'file' : c_file,})
+                               'file': c_file})
                 )
         except:
             sys.strerr.write('Received malformed trace "%s"' % data)
+
 
 class CompileCommandStorage(object):
     def __init__(self, path):
@@ -53,8 +54,12 @@ class CompileCommandStorage(object):
         self.handles = {}
 
     def _create_package_file(self, package):
-        if not self.handles.has_key(package):
-            f = open(os.path.join(self.path, 'compile_commands.%s.json' % package), 'w')
+        if not package in self.handles:
+            cc_json = os.path.join(
+                self.path,
+                'compile_commands.%s.json' % package.replace('/', '-')
+            )
+            f = open(cc_json, 'w')
             f.write('[]')
             self.handles[package] = f
 
@@ -66,7 +71,7 @@ class CompileCommandStorage(object):
         self._close_package_files()
 
     def store(self, package, command):
-        if not self.handles.has_key(package):
+        if not package in self.handles:
             self._create_package_file(package)
         f = self.handles[package]
         # overwrite trailing close bracket
