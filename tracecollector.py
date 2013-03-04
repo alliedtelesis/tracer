@@ -17,10 +17,10 @@ class TraceHandler(SocketServer.StreamRequestHandler):
 
         cfiles = reduce(
             lambda x, y: x+y,
-            [fnmatch.filter(argv, '*.c')
-             fnmatch.filter(argv, '*.cpp')
-             fnmatch.filter(argv, '*.cxx')
-             fnmatch.filter(argv, '*.c++')
+            [fnmatch.filter(argv, '*.c'),
+             fnmatch.filter(argv, '*.cpp'),
+             fnmatch.filter(argv, '*.cxx'),
+             fnmatch.filter(argv, '*.c++'),
              fnmatch.filter(argv, '*.s')]
         )
         if cfiles:
