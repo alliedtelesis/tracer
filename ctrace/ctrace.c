@@ -100,7 +100,9 @@ main(int argc, char *argv[])
     if (exec_args) {
         send_trace(exec_args);
         char *prefix = getenv(ENV_PREFIX);
-        return execvp(prefix ? prefix : exec_args[0], exec_args);
+        if (prefix)
+            argv_prepend(&exec_args, prefix);
+        return execvp(exec_args[0], exec_args);
     }
 
     exit(EXIT_FAILURE);

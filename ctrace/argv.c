@@ -51,6 +51,36 @@ argv_copy(char **src, char ***dst)
 
 
 /*
+ * Prepend an element to an argv.
+ *
+ * returns 0 on success, -1 on failure.
+ */
+int
+argv_prepend(char ***argv, char *arg)
+{
+    char **src = *argv;
+    int len = argv_len(src) + 1;
+    char **tmp = malloc((len+1) * (sizeof src[0]));
+    if (tmp == NULL) {
+        return -1;
+    }
+    if ((tmp[0] = strdup(arg)) == NULL) {
+        return -1;
+    }
+    for (int i = 1; i < len; i++) {
+        if ((tmp[i] = strdup(src[i-1])) == NULL) {
+            argv_free(tmp);
+            return -1;
+        }
+    }
+    tmp[len] = NULL;
+    argv_free(src);
+    *argv = tmp;
+    return 0;
+}
+
+
+/*
  * Calculate length of argv, excluding terminating NULL.
  *
  * returns number of arguments in argv.
