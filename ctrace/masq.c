@@ -36,11 +36,12 @@ masq_find_exec(char *path, const char *exec, const char *exclude)
                 char *real_exec_path = realpath(exec_path, NULL);
                 if (real_exec_path) {
                     char *target = basename(real_exec_path);
-                    free(real_exec_path);
                     if (strcmp(target, exclude) == 0) {
                         free(exec_path);
+                        free(real_exec_path);
                         continue;
                     }
+                    free(real_exec_path);
                 }
             }
             free(path);
