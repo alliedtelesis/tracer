@@ -84,7 +84,7 @@ class Soak(unittest.TestCase):
             rate = float(number) / (f_time - s_time)
 
             if count != number:
-                print 'Loss of %.06f%% with rate of %.2f/s' % (loss, rate)
+                print('Loss of %.06f%% with rate of %.2f/s' % (loss, rate))
             self.assertEqual(count, number)
         finally:
             shutil.rmtree(test_tmp, ignore_errors=True)
@@ -100,4 +100,3 @@ class Soak(unittest.TestCase):
 
     def test_10000(self):
         self.soak(10000)
-

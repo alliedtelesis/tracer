@@ -16,7 +16,7 @@ import socket
 
 from multiprocessing import Process, Event, Semaphore, Value, cpu_count
 from threading import Thread
-from SocketServer import BaseServer # for shutdown
+from socketserver import BaseServer # for shutdown
 
 __author__ = 'Muayyad Saleh Alsadi'
 __version__ = '0.0.2'

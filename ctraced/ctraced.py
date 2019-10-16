@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import json
 import os
 import sqlite3
-import SocketServer
+import socketserver
 import sys
 
 from pool import PooledProcessMixIn
@@ -42,7 +42,7 @@ class TraceStore(object):
                 'FROM commands WHERE package=?;',
                 [package]
             )
-            ccmd = lambda c, d, f: {'command': c, 'directory': d, 'file': f}
+            def ccmd(c, d, f): return {'command': c, 'directory': d, 'file': f}
 
             package_safe = package.replace('/', '-')
             p = os.path.join(path, 'compile_commands.%s.json' % package_safe)
@@ -54,13 +54,13 @@ class TraceStore(object):
         self.db.close()
 
 
-class TraceHandler(SocketServer.StreamRequestHandler):
+class TraceHandler(socketserver.StreamRequestHandler):
     def handle(self):
         ccmd = json.load(self.rfile)
         self.server.trace_store.store(ccmd)
 
 
-class TraceServer(SocketServer.UnixStreamServer, PooledProcessMixIn):
+class TraceServer(socketserver.UnixStreamServer, PooledProcessMixIn):
     pass
 
 

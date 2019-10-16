@@ -1,6 +1,6 @@
 CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600 \
          -O2 -march=native \
-	 -Wall -Wextra -Werror -pedantic
+	 -Wall -Werror -pedantic
 
 CTRACE_OBJS = ctrace.o argv.o masq.o ccmd.o quote.o transport.o
 
