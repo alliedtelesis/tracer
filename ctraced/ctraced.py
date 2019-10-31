@@ -56,7 +56,11 @@ class TraceStore(object):
 
 class TraceHandler(socketserver.StreamRequestHandler):
     def handle(self):
-        ccmd = json.load(self.rfile)
+        json_input = self.rfile
+        if 'b' in self.rfile.mode:
+            ccmd = json.loads(self.rfile.read().decode('utf-8'))
+        else:
+            json.load(json_input)
         self.server.trace_store.store(ccmd)
 
 
