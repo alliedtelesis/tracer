@@ -1,7 +1,11 @@
+ifndef VERBOSE
+MAKEFLAGS += --no-print-directory
+endif
+
 default: all
 
 .DEFAULT:
-	cd ctrace && $(MAKE) $@
+	@cd ctrace && $(MAKE) $@
 
 .PHONY: test
 test:
