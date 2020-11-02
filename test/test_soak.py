@@ -50,7 +50,7 @@ class Soak(unittest.TestCase):
             os.makedirs(cc_path)
             try:
                 ctraced = subprocess.Popen(
-                    ['python', CTRACED, un_path, db_path, cc_path],
+                    [CTRACED, un_path, db_path, cc_path],
                 )
 
                 # Wait for ctraced to start
@@ -64,7 +64,7 @@ class Soak(unittest.TestCase):
                     env['PACKAGE'] = self.random_package()
                     cmd = [CTRACE]
                     cmd.extend(self.random_command(i))
-                    subprocess.Popen(args=cmd, env=env)
+                    subprocess.Popen(args=cmd, env=env).wait()
                 f_time = time.time()
 
                 # Wait for connection queue to empty

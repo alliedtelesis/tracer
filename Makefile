@@ -5,4 +5,4 @@ default: all
 
 .PHONY: test
 test:
-	nosetests
+	python3 -m unittest discover -v -s test
